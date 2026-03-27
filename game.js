@@ -74,42 +74,53 @@
     world[index(x, y)] = id;
   }
 
-  function generateWorld() {
-    world = createEmptyWorld();
+ function generateWorld() {
+  world = createEmptyWorld();
 
-    let h = 32;
-    for (let x = 0; x < WORLD_WIDTH; x++) {
-      h += (Math.random() - 0.5) * 2;
-      if (h < 20) h = 20;
-      if (h > 40) h = 40;
+  // Hauteur de base du sol
+  let h = 40; // plus haut = plus de sol
 
-      for (let y = h; y < WORLD_HEIGHT; y++) {
-        if (y === Math.floor(h)) {
-          setTile(x, y, TILE.GRASS);
-        } else if (y < h + 4) {
-          setTile(x, y, TILE.DIRT);
-        } else {
-          setTile(x, y, TILE.STONE);
-        }
+  for (let x = 0; x < WORLD_WIDTH; x++) {
+
+    // Variation douce du terrain
+    h += (Math.random() - 0.5) * 2;
+    if (h < 30) h = 30;
+    if (h > 50) h = 50;
+
+    // Génération du sol
+    for (let y = h; y < WORLD_HEIGHT; y++) {
+      if (y === Math.floor(h)) {
+        setTile(x, y, TILE.GRASS); // couche d'herbe
+      } else if (y < h + 4) {
+        setTile(x, y, TILE.DIRT); // terre
+      } else {
+        setTile(x, y, TILE.STONE); // pierre
+      }
+    }
+
+    // Génération d'arbres
+    if (Math.random() < 0.06) {
+      const trunkHeight = 3 + Math.floor(Math.random() * 3);
+      const baseY = Math.floor(h) - 1;
+
+      // Tronc
+      for (let ty = 0; ty < trunkHeight; ty++) {
+        setTile(x, baseY - ty, TILE.WOOD);
       }
 
-      if (Math.random() < 0.08) {
-        const trunkHeight = 3 + Math.floor(Math.random() * 3);
-        const baseY = Math.floor(h) - 1;
-        for (let ty = 0; ty < trunkHeight; ty++) {
-          setTile(x, baseY - ty, TILE.WOOD);
-        }
-        const topY = baseY - trunkHeight;
-        for (let lx = -2; lx <= 2; lx++) {
-          for (let ly = -2; ly <= 1; ly++) {
-            if (Math.abs(lx) + Math.abs(ly) <= 3) {
-              setTile(x + lx, topY + ly, TILE.LEAF);
-            }
+      // Feuilles
+      const topY = baseY - trunkHeight;
+      for (let lx = -2; lx <= 2; lx++) {
+        for (let ly = -2; ly <= 1; ly++) {
+          if (Math.abs(lx) + Math.abs(ly) <= 3) {
+            setTile(x + lx, topY + ly, TILE.LEAF);
           }
         }
       }
     }
   }
+}
+
 
   function createDefaultPlayer() {
     return {
