@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>BlockWorld – Mini monde ouvert</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="BlockWorld est un mini jeu de monde ouvert en 2D, inspiré de Minecraft, jouable dans le navigateur.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="logo">🧱 Block<span>World</span></div>
+      <div class="topbar-info">
+        <span id="ui-fps">FPS: --</span>
+        <span id="ui-pos">X: 0 Y: 0</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="main">
+    <div class="game-wrapper">
+      <canvas id="game-canvas"></canvas>
+      <div class="hud">
+        <div class="hud-row">
+          <div class="hud-block">
+            <div class="hud-title">Contrôles</div>
+            <div class="hud-text">
+              Déplacement : A / D ou ← / →<br>
+              Saut : W ou ↑ ou Espace<br>
+              Casser : clic gauche<br>
+              Placer : clic droit<br>
+              Changer de bloc : 1–4
+            </div>
+          </div>
+          <div class="hud-block">
+            <div class="hud-title">Inventaire</div>
+            <div class="inventory" id="ui-inventory"></div>
+          </div>
+          <div class="hud-block">
+            <div class="hud-title">Astuce</div>
+            <div class="hud-text">
+              Le monde est sauvegardé automatiquement dans ton navigateur.<br>
+              Tu peux recharger la page, ta base reste.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <p>BlockWorld – mini monde ouvert 2D. Sauvegarde locale, jouable par tout le monde.</p>
+  </footer>
+
+  <script src="game.js"></script>
+</body>
+</html>
