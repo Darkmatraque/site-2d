@@ -1,4 +1,4 @@
-// BlockWorld – mini monde ouvert 2D
+// BlockWorld – mini monde ouvert 2D (version améliorée)
 
 (function () {
   const TILE_SIZE = 32;
@@ -8,7 +8,7 @@
   const MOVE_SPEED = 0.18;
   const JUMP_SPEED = -7.5;
   const MAX_FALL_SPEED = 12;
-  const SAVE_KEY = "blockworld-save-v1";
+  const SAVE_KEY = "blockworld-save-v2"; // v2 pour repartir sur une save propre
 
   const TILE = {
     AIR: 0,
@@ -54,6 +54,8 @@
     inventory: null
   };
 
+  // --- WORLD UTILS ----------------------------------------------------------
+
   function createEmptyWorld() {
     const arr = new Array(WORLD_WIDTH * WORLD_HEIGHT);
     arr.fill(TILE.AIR);
@@ -74,63 +76,83 @@
     world[index(x, y)] = id;
   }
 
- function generateWorld() {
-  world = createEmptyWorld();
+  function generateWorld() {
+    world = createEmptyWorld();
 
-  // Hauteur de base du sol
-  let h = 40; // plus haut = plus de sol
+    // Hauteur de base du sol (plus haut = plus de sol)
+    let h = 45;
 
-  for (let x = 0; x < WORLD_WIDTH; x++) {
+    for (let x = 0; x < WORLD_WIDTH; x++) {
+      // Variation douce du terrain
+      h += (Math.random() - 0.5) * 1.5;
+      if (h < 35) h = 35;
+      if (h > 55) h = 55;
 
-    // Variation douce du terrain
-    h += (Math.random() - 0.5) * 2;
-    if (h < 30) h = 30;
-    if (h > 50) h = 50;
-
-    // Génération du sol
-    for (let y = h; y < WORLD_HEIGHT; y++) {
-      if (y === Math.floor(h)) {
-        setTile(x, y, TILE.GRASS); // couche d'herbe
-      } else if (y < h + 4) {
-        setTile(x, y, TILE.DIRT); // terre
-      } else {
-        setTile(x, y, TILE.STONE); // pierre
-      }
-    }
-
-    // Génération d'arbres
-    if (Math.random() < 0.06) {
-      const trunkHeight = 3 + Math.floor(Math.random() * 3);
-      const baseY = Math.floor(h) - 1;
-
-      // Tronc
-      for (let ty = 0; ty < trunkHeight; ty++) {
-        setTile(x, baseY - ty, TILE.WOOD);
+      // Génération du sol
+      for (let y = Math.floor(h); y < WORLD_HEIGHT; y++) {
+        if (y === Math.floor(h)) {
+          setTile(x, y, TILE.GRASS);
+        } else if (y < h + 4) {
+          setTile(x, y, TILE.DIRT);
+        } else {
+          setTile(x, y, TILE.STONE);
+        }
       }
 
-      // Feuilles
-      const topY = baseY - trunkHeight;
-      for (let lx = -2; lx <= 2; lx++) {
-        for (let ly = -2; ly <= 1; ly++) {
-          if (Math.abs(lx) + Math.abs(ly) <= 3) {
-            setTile(x + lx, topY + ly, TILE.LEAF);
+      // Arbres
+      if (Math.random() < 0.07) {
+        const trunkHeight = 3 + Math.floor(Math.random() * 3);
+        const baseY = Math.floor(h) - 1;
+
+        // Tronc
+        for (let ty = 0; ty < trunkHeight; ty++) {
+          setTile(x, baseY - ty, TILE.WOOD);
+        }
+
+        // Feuilles
+        const topY = baseY - trunkHeight;
+        for (let lx = -2; lx <= 2; lx++) {
+          for (let ly = -2; ly <= 1; ly++) {
+            if (Math.abs(lx) + Math.abs(ly) <= 3) {
+              setTile(x + lx, topY + ly, TILE.LEAF);
+            }
           }
         }
       }
     }
   }
-}
 
+  function findSurfaceX(x) {
+    x = Math.max(0, Math.min(WORLD_WIDTH - 1, x));
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      const id = getTile(x, y);
+      const block = BLOCKS.find(b => b.id === id);
+      if (block && block.solid) {
+        return { x, y };
+      }
+    }
+    return { x, y: WORLD_HEIGHT - 1 };
+  }
+
+  // --- PLAYER ---------------------------------------------------------------
 
   function createDefaultPlayer() {
+    const centerX = Math.floor(WORLD_WIDTH / 2);
+    const surface = findSurfaceX(centerX);
+
+    const px = (surface.x + 0.5) * TILE_SIZE;
+    const py = surface.y * TILE_SIZE; // on se place juste au-dessus du bloc
+
     return {
-      x: WORLD_WIDTH * TILE_SIZE * 0.5,
-      y: 10 * TILE_SIZE,
+      x: px,
+      y: py,
       vx: 0,
       vy: 0,
       width: 20,
       height: 30,
       onGround: false,
+      spawnX: px,
+      spawnY: py,
       inventory: {
         [TILE.DIRT]: 20,
         [TILE.STONE]: 10,
@@ -139,6 +161,16 @@
       }
     };
   }
+
+  function respawnPlayer() {
+    player.x = player.spawnX;
+    player.y = player.spawnY;
+    player.vx = 0;
+    player.vy = 0;
+    player.onGround = false;
+  }
+
+  // --- SAVE / LOAD ----------------------------------------------------------
 
   function saveGame() {
     try {
@@ -168,6 +200,8 @@
       return false;
     }
   }
+
+  // --- CANVAS / INPUT -------------------------------------------------------
 
   function resizeCanvas() {
     const rect = canvas.getBoundingClientRect();
@@ -213,6 +247,8 @@
     });
   }
 
+  // --- INTERACTIONS ---------------------------------------------------------
+
   function handleBreakBlock() {
     const tx = Math.floor(mouse.worldX / TILE_SIZE);
     const ty = Math.floor(mouse.worldY / TILE_SIZE);
@@ -221,8 +257,7 @@
 
     setTile(tx, ty, TILE.AIR);
 
-    const block = BLOCKS.find(b => b.id === id);
-    if (block && player.inventory[id] !== undefined) {
+    if (player.inventory[id] !== undefined) {
       player.inventory[id] += 1;
     }
 
@@ -262,6 +297,8 @@
     updateInventoryUI();
   }
 
+  // --- PHYSIQUE / MOUVEMENT -------------------------------------------------
+
   function updatePlayer(dt) {
     let move = 0;
     if (keys["a"] || keys["arrowleft"]) move -= 1;
@@ -280,6 +317,10 @@
 
     movePlayerAxis("x", player.vx * dt * 60);
     movePlayerAxis("y", player.vy * dt * 60);
+
+    if (player.y > WORLD_HEIGHT * TILE_SIZE + 300) {
+      respawnPlayer();
+    }
   }
 
   function movePlayerAxis(axis, delta) {
@@ -292,13 +333,13 @@
       const top = player.y - player.height;
       const bottom = player.y;
 
-      const left = Math.floor((player.x - halfW) / TILE_SIZE);
-      const right = Math.floor((player.x + halfW - 1) / TILE_SIZE);
+      const leftTile = Math.floor((player.x - halfW) / TILE_SIZE);
+      const rightTile = Math.floor((player.x + halfW - 1) / TILE_SIZE);
       const topTile = Math.floor(top / TILE_SIZE);
       const bottomTile = Math.floor((bottom - 1) / TILE_SIZE);
 
       for (let ty = topTile; ty <= bottomTile; ty++) {
-        for (let tx = left; tx <= right; tx++) {
+        for (let tx = leftTile; tx <= rightTile; tx++) {
           const id = getTile(tx, ty);
           const block = BLOCKS.find(b => b.id === id);
           if (!block || !block.solid) continue;
@@ -348,25 +389,20 @@
               player.y -= overlap;
               player.vy = 0;
               player.onGround = true;
-              bottomTile = ty;
             }
           } else {
             const overlap = by2 - top;
             if (overlap > 0) {
               player.y += overlap;
               player.vy = 0;
-              topTile = ty;
             }
           }
         }
       }
     }
-
-    if (player.y > WORLD_HEIGHT * TILE_SIZE + 200) {
-      player.y = 0;
-      player.vy = 0;
-    }
   }
+
+  // --- CAMERA / RENDER ------------------------------------------------------
 
   function updateCamera() {
     camera.x = player.x - width / 2;
@@ -466,7 +502,7 @@
     ctx.stroke();
   }
 
-  function render(dt) {
+  function render() {
     ctx.clearRect(0, 0, width, height);
 
     const skyGradient = ctx.createLinearGradient(0, 0, 0, height);
@@ -480,12 +516,7 @@
     drawCrosshair();
   }
 
-  function update(dt) {
-    updatePlayer(dt);
-    updateCamera();
-    saveGame();
-    updateUI();
-  }
+  // --- UI -------------------------------------------------------------------
 
   function updateUI() {
     if (ui.fps) ui.fps.textContent = "FPS: " + fps.toFixed(0);
@@ -527,6 +558,8 @@
     });
   }
 
+  // --- LOOP -----------------------------------------------------------------
+
   function loop(timestamp) {
     if (!lastTime) lastTime = timestamp;
     const dt = (timestamp - lastTime) / 1000;
@@ -536,11 +569,16 @@
     const currentFps = 1 / Math.max(dt, 0.0001);
     fps = fps * (1 - alpha) + currentFps * alpha;
 
-    update(dt);
-    render(dt);
+    updatePlayer(dt);
+    updateCamera();
+    saveGame();
+    updateUI();
+    render();
 
     requestAnimationFrame(loop);
   }
+
+  // --- INIT -----------------------------------------------------------------
 
   function init() {
     canvas = document.getElementById("game-canvas");
